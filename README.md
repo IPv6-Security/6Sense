@@ -39,7 +39,7 @@ When both the Scanner and the Dealiaser are built, and you have your dataset, yo
 2. Set the scanner parameters in config.py. 
 3. Create your python environment (we suggest using Conda) and initialize it wiht the packages in requirements.txt.conda (or requirements.txt.pip if using a pip-based environment).
 4. Build the cython module for printing IPs with  `python3 setup.py build_ext --inplace` Be careful to do this in your final python envionrment. Cython does not port well between different python enivronments. 
-5. Next you need to ensure your pfx2as file is properly parsed. You can do so by running `rounding.py pfx2as_filename.dat pfx2as_rounded_filename.dat`.
+5. Next you need to ensure your pfx2as file is properly parsed. You can do so by running `python3 rounding.py pfx2as_filename.dat pfx2as_rounded_filename.dat`.
 6. Initiate a Jupyter Notebook instance for `Gradient_Testing_On_Generation.ipynb`.
 7. To train the models, you should run the cells under Train Model.
 78. To run the model, you should run the cells under Run Model.
