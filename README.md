@@ -1,10 +1,3 @@
-Copyright (C)  - All Rights Reserved
-
-This source code is protected under international copyright law.  All rights
-reserved and protected by the copyright holders.  All files in this bundle are
-confidential and only available to authorized individuals with the permission
-of the copyright holders.  
-
 # 6Sense: Internet-Wide IPv6 Scanning and its Security Applications
 
 ## Setup & Run
@@ -42,4 +35,10 @@ When both the Scanner and the Dealiaser are built, and you have your dataset, yo
 5. Next you need to ensure your pfx2as file is properly parsed. You can do so by running `python3 rounding.py pfx2as_filename.dat pfx2as_rounded_filename.dat`.
 6. Initiate a Jupyter Notebook instance for `Gradient_Testing_On_Generation.ipynb`.
 7. To train the models, you should run the cells under Train Model.
-78. To run the model, you should run the cells under Run Model.
+8. To run the model, you should run the cells under Run Model.
+
+
+## License
+
+6Sense is licensed under Apache 2.0. For more information, see the LICENSE file.
+
