@@ -41,7 +41,7 @@ class FixedLowBit():
         
         self.upper_generator = PriorLevel
     
-    def sample(self, number_to_generate, *args):
+    def sample(self, number_to_generate, *args, **kwargs):
         sampled = self.upper_generator(number_to_generate, "all_ips")
         addresses = (16* sampled).astype(int)
         addresses = print_ips(addresses)
