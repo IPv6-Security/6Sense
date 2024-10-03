@@ -30,7 +30,7 @@ When both the Scanner and the Dealiaser are built, and you have your dataset, yo
 
 1. Set all of the file paths in `config.py` (including the paths to the scanner and dealiaser you just installed and the datasets you just downloaded or collected). Keep in mind some paths are relative to your home directory, and some are absolute, so make sure to check the comments in `config.py` if it's not finding your filepath.
 2. Set the scanner parameters in config.py. 
-3. Create your python environment (we suggest using Conda) and initialize it with the packages in requirements.txt.conda (or requirements.txt.pip if using a pip-based environment).
+3. Create your python environment (we suggest using Conda) and initialize it with the packages in 6sense.yml.
 4. Build the cython module for printing IPs with  `python3 setup.py build_ext --inplace` Be careful to do this in your final python envionrment. Cython does not port well between different python enivronments. 
 5. Next you need to ensure your pfx2as file is properly parsed. You can do so by running `python3 rounding.py pfx2as_filename.dat pfx2as_rounded_filename.dat`.
 6. Initiate a Jupyter Notebook instance for `Gradient_Testing_On_Generation.ipynb`.
