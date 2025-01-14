@@ -21,7 +21,7 @@ You will need three separate datasets to run 6Sense:
 
 1. A mapping of IPv6 routing prefixes to ASes. We suggest Routeviews Pfx2AS for ease of use. It can be found here: https://www.caida.org/catalog/datasets/routeviews-prefix2as/
 2. A list of known aliased prefixes. One option is the alias prefix dataset provided by the IPv6 Hitlist here: https://ipv6hitlist.github.io/. You may use an empty file if you wish to bypass offline dealiasing. 
-3. A seed dataset of potentially active IPv6 addresses. Choosing the optimal seed dataset for a particular use case is a nontrivial open problem. Hitlists such as the IPv6 Hitlist (https://ipv6hitlist.github.io/) give some diversity of data sources, and may be good for early users. Choose your seed dataset wisely as it will determine what you find...
+3. A seed dataset of potentially active IPv6 addresses. Choosing the optimal seed dataset for a particular use case is a nontrivial open problem. Hitlists such as the IPv6 Hitlist (https://ipv6hitlist.github.io/) give some diversity of data sources, and may be good for early users. Choose your seed dataset wisely as it will determine what you find... (Note: IPv6 seed addresses should be in fully expanded format). 
 
 
 ### Generator
