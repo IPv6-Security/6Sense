@@ -48,10 +48,11 @@ PROC = {}
 # PARAMETERS
 ALIAS_TEST_CASES = 3 # Number to generate
 ALIAS_REPEATS = 3
-ALIAS_TEST_CASES_ACTIVE = 3 # Number that have to be active to call this an alias.
+ALIAS_TEST_CASES_ACTIVE = 2 # Number that have to be active to call this an alias.
 PACKETS_SENT = 0 # Aliased Packets Sent
 PACKETS_SENT_WHEN_LAST_CHECKED=0
 PACKETS_RECIEVED = 0
+INPUT_SENT = 0
 
 
 # MULTI PROCESSOR FUNCTIONS
@@ -61,7 +62,11 @@ def listen_on_pipe(output_queue, reciever_queue):
     
     Output Queue: Queue to Write New Scans to.
     """
-
+    # Create Aliasing Datastructure to Record Results
+    # - If Not seen in alias dictionary, presume new.
+    # - If Seen in alias dictionary, presume 
+    # Create Hits Datastructure
+    # - If not in alias dictionary, 
     global SENT_ADDRESSES, ALIAS, ALIAS_TEST_ADDRESS_MAPPING, PREFIX_TO_IP, PROC, PACKETS_SENT, ALIAS_TEST_IPS
     print("BEGIN DEALIASING")
 
@@ -78,6 +83,7 @@ def listen_on_pipe(output_queue, reciever_queue):
                         ALIAS[addr_prefix] = set([])
                         ALIAS_TEST_IPS[addr_prefix] = []
                         PREFIX_TO_IP[addr_prefix] = [str_line]
+                        # Run Aliasing generation -> aliased_test_addresses
                         for alias_number in range(0, ALIAS_TEST_CASES):
                             # Random 16 bits
                             random_half_1 = "{:04x}".format(random.randint(0, 65535)) # "aaaa"
@@ -159,11 +165,20 @@ def accept_subprocess(reciever_queue):
                 prior_line = ""
                 last_count = current_count
 
+def get_log_line(scanner_log_filepath):
+    log_line = subprocess.check_output(['tail', '-1', scanner_log_filepath])
+    while ("[INPUT HANDLER]" in str(log_line)) or ("probes sent" not in str(log_line)):
+        time.sleep(1)
+        log_line = subprocess.check_output(['tail', '-1', scanner_log_filepath])
+    
+    return log_line
+    
+
 
 
 class SocketLessDealiaserSystem():
     
-    def __init__(self, scanner_log_filepath=None, config_filepath=None, duplicates=True, return_hits=True, port=None, protocol=None, reset_aliases=True):
+    def __init__(self, scanner_log_filepath=None, config_filepath=None, duplicates=True, return_hits=True, port=None, protocol=None, reset_aliases=True, dest_unreach_filepath=None):
         """
         ScannerSystem: Asynchronous scanner using sockets to convey IP addresses. 
             duplicates: No Longer Used. Returns all IPs found active (kept for legacy support)
@@ -179,6 +194,14 @@ class SocketLessDealiaserSystem():
             self.scanner_log_filepath = scanner_log_filepath
             print("SCANNER FILENAME: ", self.scanner_log_filepath)
             self.scanner_log_object = open(self.scanner_log_filepath, 'a')
+            
+        # Output Destination Unreachables:
+        if dest_unreach_filepath is None:
+            self.dest_unreach_filepath = conf.icmp_dest_unreach_output_file
+            print("DEST UNREACH FILENAME: ", self.dest_unreach_filepath)
+        else:
+            self.dest_unreach_filepath = dest_unreach_filepath
+            print("DEST UNREACH FILENAME: ", self.dest_unreach_filepath)
 
         if port is None:
             self.port = conf.target_port
@@ -222,7 +245,6 @@ class SocketLessDealiaserSystem():
             self.config_filepath = conf.SCANNER_CONFIG_FILE
         else:
             self.config_filepath = config_filepath
-        
 
 
         self.first_time = time.time()
@@ -273,7 +295,7 @@ class SocketLessDealiaserSystem():
         time.sleep(1)
     
     def add(self, ipLists, expanded=False):
-        global SENT_ADDRESSES, ALIAS, ALIAS_TEST_ADDRESS_MAPPING, PREFIX_TO_IP, PROC, PACKETS_SENT, PACKETS_SENT_WHEN_LAST_CHECKED
+        global SENT_ADDRESSES, ALIAS, ALIAS_TEST_ADDRESS_MAPPING, PREFIX_TO_IP, PROC, PACKETS_SENT, PACKETS_SENT_WHEN_LAST_CHECKED, INPUT_SENT
         
         t1 = time.time()
         ip_string = ""
@@ -311,7 +333,8 @@ class SocketLessDealiaserSystem():
                 self.to_scan.put(ip_string)
                 ip_string = ""
             print("BATCH SENDING COMPLETE: ", count) 
-
+            
+        INPUT_SENT += total_sent
         # Set Time to Send all of this at the current rate minus the time that has already passed
         time_to_send = total_sent/self.send_rate - (time.time()-t1)
         self.time_tracker += (currently_known_alias_packets - PACKETS_SENT_WHEN_LAST_CHECKED)/self.send_rate
@@ -356,6 +379,7 @@ class SocketLessDealiaserSystem():
         print("Alias Dictionary Length: ", len(ALIAS.keys()))
 
         # Write ALIAS to a file
+        """
         t1 = time.time()
         if self.reset_aliases:
             with open(self.scanner_log_filepath  + ".alias_objects", 'ab+') as g:
@@ -367,6 +391,7 @@ class SocketLessDealiaserSystem():
                 pickle.dump(ALIAS_TEST_IPS, g)
         t2 = time.time()
         print("Pickle Time: ", t2-t1)
+        """
 
         SENT_ADDRESSES = set([])
         if self.reset_aliases == True:
@@ -377,8 +402,10 @@ class SocketLessDealiaserSystem():
 
         print("Time Until Parsing: ", time.time() - self.first_time)
 
+        # Legacy return format to support older versions of scanner/dealiaser
         return [], [dealiased_ips], [], [aliased_ips]
 
+    
     def reset(self):
         pass
 
@@ -386,20 +413,25 @@ class SocketLessDealiaserSystem():
         """
         Close Connection to Scanner. 
         """
-        global SENT_ADDRESSES, ALIAS, ALIAS_TEST_ADDRESS_MAPPING, PREFIX_TO_IP, PROC, PACKETS_SENT, PACKETS_SENT_WHEN_LAST_CHECKED, PACKETS_RECIEVED
-
+        global SENT_ADDRESSES, ALIAS, ALIAS_TEST_ADDRESS_MAPPING, PREFIX_TO_IP, PROC, PACKETS_SENT, PACKETS_SENT_WHEN_LAST_CHECKED, PACKETS_RECIEVED, INPUT_SENT
+        
+        t1 = time.time()
+        
+        #try:
         # Check Dropped Packets
-        log_line = subprocess.check_output(['tail', '-1', self.scanner_log_filepath])
+        log_line = get_log_line(self.scanner_log_filepath)
         split_line = str(log_line).split('(m+: ')
         first_buffer = int(split_line[1].split(')')[0])
         second_buffer = int(split_line[2].split(')')[0])
         print(log_line, first_buffer, second_buffer)
 
+
+        # Wait until it estimates packets should have been sent 
         t1 = time.time()
         print("Waiting to Close Connection")
         self.time_tracker += (PACKETS_SENT - PACKETS_SENT_WHEN_LAST_CHECKED)/self.send_rate
         PACKETS_SENT_WHEN_LAST_CHECKED = PACKETS_SENT
-        time_diff = self.time_tracker - time.time()
+        time_diff =  self.time_tracker - time.time()
         print("Time Remaining: ", time_diff)
         while time.time() < self.time_tracker:
             time.sleep(time_diff)
@@ -408,52 +440,68 @@ class SocketLessDealiaserSystem():
             time_diff = self.time_tracker - time.time()
             print("Time Remaining: ", time_diff)
         t2 = time.time()
-        print("Time Spent Waiting for Everything to be sent: ", t2-t1)
-
-        # Not a Very Useful Check but here anyway
-        t1 = time.time()
-        while self.to_scan.qsize() != 0 or self.reciever_queue.qsize() != 0:
-            if self.to_scan.qsize() == 0 and self.reciever_queue.qsize() == 0:
-                time.sleep(.5)
-                if self.to_scan.qsize() == 0 and self.reciever_queue.qsize() == 0:
-                    time.sleep(.5)
-                    if self.to_scan.qsize() == 0 and self.reciever_queue.qsize() == 0:
-                        break
-            time.sleep(.5)
-            
-        t2 = time.time()
-        print("Wait Time for Sending Queue: ", t2-t1)
         
-        still_ips = True
-
-        while still_ips:
-            current_recieved_packets = 0
-            time_slept = 0
-            while current_recieved_packets < PACKETS_RECIEVED:
-                current_recieved_packets = PACKETS_RECIEVED
-                time.sleep(2)
-                time_slept += 2
-            print("Total Time Waiting on Recieved Packets: ", time_slept)
-            print("Total Recieved Packets: ", PACKETS_RECIEVED)
-
-            time.sleep(self.cooldown)
-            print("Current Recieved Packets: ", current_recieved_packets)            
-            print("Total Recieved Packets: ", PACKETS_RECIEVED)
-            if current_recieved_packets >= PACKETS_RECIEVED:
-                still_ips = False
-
-            # Check Log
-            log_line = subprocess.check_output(['tail', '-1', self.scanner_log_filepath])
-            split_line = str(log_line).split('(m+: ')
-            first_buffer = int(split_line[1].split(')')[0])
-            second_buffer = int(split_line[2].split(')')[0])
-            print(log_line, first_buffer, second_buffer)
-            if first_buffer != 0 or second_buffer != 0:
-                still_ips = True
+        # Make Sure Everything is Sent
+        t3 = time.time()
+        total_sent = 0
+        while total_sent < (INPUT_SENT+PACKETS_SENT-1):
+            time.sleep(1)
+            log_line = get_log_line(self.scanner_log_filepath)
+            total_sent = int(str(log_line).split(" probes sent")[0].split(" ")[-1])
+            blocklisted = int(str(log_line).split(" addresses blocked")[0].split(" ")[-1])
+            total_sent = blocklisted + total_sent
             
+            print("To Send: ", total_sent, "v.", INPUT_SENT+PACKETS_SENT)
+        
+        
+            
+        t4 = time.time()
+        print("Time Waiting for Sending: ", t3-t4)
+        print("Time Spent Waiting for Everything to be sent: ", t2-t1)
+        
+        # Make Sure We aren't still getting hits after five seconds. 
+        still_ips = True
+        while still_ips:
+            print("Loop Continuing: ", still_ips)
+            first_buffers = 0
+            second_buffers = 0
+            log_line = get_log_line(self.scanner_log_filepath)
+
+            first_responses = int(str(log_line).split(" hits received")[0].split(' ')[-1])
+            first_sent = int(str(log_line).split(" probes sent")[0].split(' ')[-1])
+            blocklisted = int(str(log_line).split(" addresses blocked")[0].split(" ")[-1])
+            first_sent = first_sent + blocklisted
+
+
+            #for x in range(0, 10):
+            #    log_line = get_log_line(self.scanner_log_filepath)                
+            #    split_line = str(log_line).split('(m+: ')
+            #    first_buffers = int(split_line[1].split(')')[0])
+            #    second_buffers = int(split_line[2].split(')')[0])
+            #    time.sleep(1)
+            time.sleep(5)
+
+            log_line = get_log_line(self.scanner_log_filepath)
+            responses = int(str(log_line).split(' hits received')[0].split(' ')[-1])
+            sent = int(str(log_line).split(' probes sent')[0].split(' ')[-1])
+            sent = blocklisted + sent
+            print("Responses: ", first_responses, "->", responses)
+             
+
+            if sent > first_sent:
+                still_ips = True
+            elif responses > first_responses+50:
+                still_ips = True
+            elif first_buffers != 0 or second_buffers > 10:
+                still_ips = True
+            else:
+                still_ips = False
+                
+            
+
         t2 = time.time()
         print("Total Wait Time for Sending: ", t2-t1)
-    
+
         # Terminate threads and subprocess
         self.to_scan.put('')
         self.reciever2.join()
@@ -487,6 +535,9 @@ class SocketLessDealiaserSystem():
         self.reciever_queue.join_thread()
         self.scanner_log_object.close()
 
+
+
+        INPUT_SENT = 0
         PACKETS_SENT = 0
         PACKETS_SENT_WHEN_LAST_CHECKED = 0
         PACKETS_RECIEVED = 0

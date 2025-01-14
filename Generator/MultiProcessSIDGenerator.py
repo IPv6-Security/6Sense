@@ -85,7 +85,7 @@ class MultiProcessSIDGenerator():
                                     self.generated_queue[-1], 
                                     self.output_queue[-1],
                                     input_gpu_number)))
-            time.sleep(9)
+            time.sleep(30)
             self.threads[-1].start()
         
         setup_models = 0

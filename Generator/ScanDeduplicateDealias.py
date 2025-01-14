@@ -53,7 +53,7 @@ class ScanDeduplicateDealiasObject:
         self.DEALIASER = DealiaserSystem(aliases = conf.ALIAS_PREFIX_FILE)
             
     def CreateNewScanner(self):
-        self.SCANNER = SocketLessDealiaserSystem() #scanner_log_filepath=self.scanner_log_filepath)
+        self.SCANNER = SocketLessDealiaserSystem(reset_aliases=False) #scanner_log_filepath=self.scanner_log_filepath)
 
 
     def AddBatch(self, input_addresses, expanded=False):
