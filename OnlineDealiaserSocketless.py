@@ -232,8 +232,8 @@ class SocketLessDealiaserSystem():
                 conf_string += 'probes=' + str(conf.probes) + '\n'
                 conf_string += 'expanded=' + conf.expanded + '\n'
                 conf_string += 'flush=' + conf.flush + '\n'
-                #conf_string += 'simulation=' + conf.simulation + '\n'
-                #conf_string += 'simulation-hitrate=' + str(conf.simulation_hitrate) + '\n'
+                conf_string += 'simulation=' + conf.simulation + '\n'
+                conf_string += 'simulation-hitrate=' + str(conf.simulation_hitrate) + '\n'
                 conf_string += 'target-port=' + str(self.port) + '\n'
                 if conf.PORT_TO_SCAN == "udp6_dnsscan":
                     conf_string += 'udp-query-domain="' + conf.udp_query_domain + '"\n'
